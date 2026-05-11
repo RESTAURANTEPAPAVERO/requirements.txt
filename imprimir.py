@@ -63,7 +63,6 @@ elif st.session_state.paso == "cantidad":
     info = df[df['Producto'] == st.session_state.producto_sel].iloc[0]
     ahora = datetime.now()
     
-    # Datos de la tabla
     h_proc = float(info.get('H_Desc_Proceso', 0)) if not pd.isna(info.get('H_Desc_Proceso')) else 0
     h_vida = float(info.get('H_Vida_Post', 0)) if not pd.isna(info.get('H_Vida_Post')) else 0
     es_elaboracion = str(info.get('Tipo', '')).lower() == 'elaboracion'
@@ -75,8 +74,8 @@ elif st.session_state.paso == "cantidad":
     txt_uso = f_uso.strftime('%d/%m/%y %H:%M')
     txt_cad = "VER FECHA FABRICANTE" if es_fab else (f_uso + timedelta(hours=h_vida)).strftime('%d/%m/%y %H:%M')
     
-    # Generación de Lote automático (Ej: L + día del año)
-    lote_auto = f"L{ahora.timetuple().tm_yday}" if es_elaboracion else ""
+    # Lote en formato fecha invertida (YYYYMMDD)
+    lote_auto = ahora.strftime('%Y%m%d') if es_elaboracion else ""
 
     st.markdown(f"<div style='background:#f0f2f6; padding:20px; border-radius:15px; margin-bottom:10px;'><h2>{st.session_state.producto_sel}</h2></div>", unsafe_allow_html=True)
     
@@ -92,25 +91,32 @@ elif st.session_state.paso == "cantidad":
             nombre_f = f"etiqueta_{timestamp}.pdf"
             c = canvas.Canvas(nombre_f, pagesize=(35*mm, 25*mm))
             for _ in range(int(st.session_state.cant_copias)):
-                # Nombre producto
+                # Nombre producto (arriba)
                 c.setFont("Helvetica-Bold", 8)
-                c.drawString(2*mm, 21*mm, str(st.session_state.producto_sel)[:20])
+                c.drawString(2*mm, 21*mm, str(st.session_state.producto_sel)[:22])
                 
-                # Línea de Elab y Lote
-                c.setFont("Helvetica", 6.5)
-                linea_elab = f"ELAB: {txt_elab}"
-                if es_elaboracion: linea_elab += f"  LOT: {lote_auto}"
-                c.drawString(2*mm, 17.5*mm, linea_elab)
+                # Línea de Elab (ahora sola para que no se amontone)
+                c.setFont("Helvetica", 6)
+                c.drawString(2*mm, 18*mm, f"ELAB: {txt_elab}")
+                
+                # Línea de Lote (solo si es elaboración, debajo de ELAB)
+                y_siguiente = 15.5*mm
+                if es_elaboracion:
+                    c.setFont("Helvetica-Bold", 6.5)
+                    c.drawString(2*mm, 15.5*mm, f"LOTE: {lote_auto}")
+                    y_siguiente = 13*mm
                 
                 # Línea de Uso
-                c.drawString(2*mm, 14*mm, f"USO:  {txt_uso}")
+                c.setFont("Helvetica", 6)
+                c.drawString(2*mm, y_siguiente, f"USO:  {txt_uso}")
                 
+                # Línea divisoria
                 c.setLineWidth(0.1)
-                c.line(2*mm, 12.5*mm, 33*mm, 12.5*mm)
+                c.line(2*mm, 11.5*mm, 33*mm, 11.5*mm)
                 
-                # Caducidad
+                # Caducidad (abajo, más grande para que se vea bien)
                 c.setFont("Helvetica-Bold", 7.5 if es_fab else 9)
-                c.drawString(2*mm, 6.5*mm, txt_cad if es_fab else f"CAD: {txt_cad}")
+                c.drawString(2*mm, 6*mm, txt_cad if es_fab else f"CAD: {txt_cad}")
                 c.showPage()
             c.save()
             
